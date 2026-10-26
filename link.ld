@@ -11,7 +11,7 @@ Their capabilities are misted in the System Architecture section of the referenc
 */
 MEMORY {
   flash(rx)  : ORIGIN = 0x08000000, LENGTH = 512k
-  sram(rwx) : ORIGIN = 0x20000000, LENGTH = 96k /* Main SRAM on bus matrix: general purpose */
+  sram(rwx) : ORIGIN = 0x20000000, LENGTH = 128k /* Main SRAM on bus matrix: general purpose */
   /* Some processors might have additional memory blocks, such as CCMRAM to be added here. */
 }
 

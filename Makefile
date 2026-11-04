@@ -19,8 +19,9 @@ CFLAGS += -g3 -Os -ffunction-sections -fdata-sections $(EXTRA_CFLAGS)
 # Linker flags.
 # Use our custom linker script and do not add default start files (we explicitly add the correct one to SOURCES).
 # Use newlib's libc_nano instead of the full libc.
+# Note that the order of library flags matters and -lm must be before -lc_nano as libm depends on libc.
 # gc-sections discards symbols that are not transitively reachable from the vector table.
-LDFLAGS = -Tlink.ld -nostartfiles -nostdlib -lc_nano -lm -lgcc -Wl,--gc-sections -Wl,-Map=$@.map
+LDFLAGS = -Tlink.ld -nostartfiles -nostdlib -lm -lc_nano -lgcc -Wl,--gc-sections -Wl,-Map=$@.map
 
 
 # Project source files. Add any that you create to this list.
@@ -30,7 +31,7 @@ SOURCES = main.c syscalls.c
 SOURCES += cmsis_f4/Source/Templates/gcc/startup_stm32f411xe.s
 
 # Project header files. We need to rebuild if these change.
-HEADERS = hal.h
+HEADERS = 
 
 
 # Default target when make is called with no args.
@@ -57,8 +58,10 @@ cmsis_f4:
 	git clone -q --filter=blob:none -b v2.6.8 https://github.com/STMicroelectronics/cmsis_device_f4 $@
 
 
-# flash the MCU
+# Flash the MCU using an ST-Link device.
 # The address here refers to the start of flash, and must match the datasheet and linker script.
+# If you are using a direct USB connection, you will need to replace the st-flash command
+# with a call to dfu-util. You will need to boot the device into DFU mode before calling this.
 flash: firmware.bin
 	st-flash --reset write $< 0x08000000
 

@@ -7,7 +7,7 @@ ENTRY(Reset_Handler);
 /*
 Memory layout of the MCU.
 Addresses of memory segments are described in the Memory Mapping section of the datasheet.
-Their capabilities are misted in the System Architecture section of the reference manual.
+Their capabilities are listed in the System Architecture section of the reference manual.
 */
 MEMORY {
   flash(rx)  : ORIGIN = 0x08000000, LENGTH = 512k

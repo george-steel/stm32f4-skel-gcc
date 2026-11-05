@@ -18,7 +18,64 @@ void SystemInit(void) {
   // Documented in programmer's manual.
   SCB->CPACR = 0xf << 20;
 
-  // Set up the clock here
+  // Set up the clock for full-speed operation.
+  // At startup the MCU always runs from the 16MHz HSI RC oscilator,
+  // This is slower than the flash memory latency, and the core fetches instructions directly.
+
+  // At full speed, the core will outrun flash memory latency (but not its bandwidth, as it uses a much wider word size than the core).
+  // To ensure reads to happen correctly, we need to add wait states between starting and completing a read.
+  // To allow the core to execute at full speed, we enable prefetcing as well as data and instruction caches.
+  // Described by Embedded flash memory interface/Read Interface in the reference manual.
+  constexpr uint32_t FLASH_CONFIG = FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN | FLASH_ACR_LATENCY_3WS; // 90-100MHz at 3.3V
+  FLASH->ACR = FLASH_CONFIG;
+  // Set the core voltage regulator for full-speed operation
+  // If running at a lower speed, this can be adjusted to reduce draw
+  // This is described in Power Controller/Power Supplies/Voltage Regulator
+  PWR->CR = (3 << PWR_CR_VOS_Pos);
+  
+  // Configure ther PLL to generate the core clock frequency and (optionally) USB clock frequency
+  // from the HSE clock, which is usually a crystal oscilator.
+  // The PLC operates in three stages, dividing by M, multiplying by N,
+  // then dividing by 1P for the core clock and Q for the USB/SDIO clock.
+  // Each the frequency after each stgage must fall into a specific range
+  // described in the reference manual under the entry for the PLLCFGR register.
+  // If USB is used, the USB/SDIO clock must be at 48MHz, which can restrict the choice of core clock speeds.
+  // Note that the representation of this register varries between MCU models (gotcha 194).
+  RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC | (4 << RCC_PLLCFGR_PLLQ_Pos) | (1 << RCC_PLLCFGR_PLLP_Pos) | (192 << RCC_PLLCFGR_PLLN_Pos) | (25 << RCC_PLLCFGR_PLLM_Pos); // 96 MHz from 25 MHz, USB compatible
+  //RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC | (8 << RCC_PLLCFGR_PLLQ_Pos) | (1 << RCC_PLLCFGR_PLLP_Pos) | (160 << RCC_PLLCFGR_PLLN_Pos) | (20 << RCC_PLLCFGR_PLLM_Pos); // 100 MHz from 25 MHz, no USB
+  //RCC->PLLCFGR = RCC_PLLCFGR_PLLSRC | (8 << RCC_PLLCFGR_PLLQ_Pos) | (1 << RCC_PLLCFGR_PLLP_Pos) | (100 << RCC_PLLCFGR_PLLN_Pos) | (4 << RCC_PLLCFGR_PLLM_Pos); // 100 MHz from 8 MHz, no USB (Nucleo board)
+  
+  // Turn on the HSE oscilator and PLL.
+  // Nucleo boards in their stock configuration will also need to set RCC_CR_HSEBYP to make the HSE input-only,
+  // as the main MCU shares a crystal with the ST-Link, and the ST-Link provides the oscilator.
+  RCC->CR |= RCC_CR_HSEON | RCC_CR_PLLON; // Enable HSE Bypass and PLL;
+  // wait until PLL and flash controller are both ready
+  while (FLASH->ACR != FLASH_CONFIG) {}
+  while (!(RCC->CR & RCC_CR_HSERDY)) {}
+  while (!(RCC->CR & RCC_CR_PLLRDY)) {}
+  // Switch clock source to PLL and turn on prescalar to run APB1 at half speed.
+  RCC->CFGR = RCC_CFGR_PPRE1_DIV2 | (RCC_CFGR_SW_PLL); // Use PLL, divide APB1 to 36MHz
+  // Wait for clock to switch over
+  while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL) {}
+  // Update SystemCoreClock to match what we just set, so we can refer to it later.
+  SystemCoreClock = 96000000;
+
+  // Enable the SysTick timer, which periodically calls our handler defined below.
+  SysTick_Config(SystemCoreClock / 1000);  // Tick every 1 ms
+}
+
+
+// Count the number of times the SysTick handler has been called.
+// Useful for delay routines as it lets the MCU sleep for a given number of ticks.
+// Variables used to communicate between the main routine and interrupts must be marked volatile
+// to prevent reordering optimizations from breaking them.
+__USED volatile uint32_t ms_counter;
+
+// Runs once every milisecond.
+// Currently just keeps a count, but you can add other periodic tasks to this that don't get their own timer.
+// Handlers are weakly declared in startup_xxx.s and referred to by the vector table.
+void SysTick_IRQHandler() {
+  ms_counter++;
 }
 
 

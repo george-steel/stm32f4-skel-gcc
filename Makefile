@@ -2,7 +2,7 @@
 # See the functional descripion in datacheet as well as
 # https://support.arm.com/documentation/100166/0001/Functional-Description/Processor-features
 # or the corresponding version for your CPU core.
-CFLAGS = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16
+CFLAGS = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -std=c23
 # Full warnings to help eliminate footguns.
 # Wdouble-promotion is especially relevant for STM32F4 since it has single-precision instructions but not double-precision
 # Wconversion requires explicit downcasting between numeric types.

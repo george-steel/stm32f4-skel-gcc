@@ -25,13 +25,13 @@ LDFLAGS = -Tlink.ld -nostartfiles -nostdlib -lm -lc_nano -lgcc -Wl,--gc-sections
 
 
 # Project source files. Add any that you create to this list.
-SOURCES = main.c syscalls.c
+SOURCES = main.c syscalls.c hal_core.c
 # Vector table and Reset_Handler defined in CMSIS.
 # This must match your MCU as vector table layouts differ between models.
 SOURCES += cmsis_f4/Source/Templates/gcc/startup_stm32f411xe.s
 
 # Project header files. We need to rebuild if these change.
-HEADERS = 
+HEADERS = hal.h
 
 
 # Default target when make is called with no args.
@@ -64,6 +64,12 @@ cmsis_f4:
 # with a call to dfu-util. You will need to boot the device into DFU mode before calling this.
 flash: firmware.bin
 	st-flash --reset write $< 0x08000000
+
+# Flash the MCU using USB-DFU, used on boards where the MCU has a direct USB connection.
+# This requires that board has been manually put into DFU mode,
+# usually by triggering reset while pulling up BOOT0.
+dfu: firmware.bin
+	dfu-util -d ,0483:df11 -a 0 -s 0x08000000:leave -D firmware.bin
 
 clean:
 	rm firmware.* *.o *.map

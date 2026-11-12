@@ -78,8 +78,7 @@ void gpio_set_exti(GPIO_TypeDef* bank, uint32_t pin, bool rising, bool falling) 
   RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
   uint32_t bank_num = (((uint32_t) bank) - ((uint32_t) GPIOA)) / 0x400;
 
-  // set multiplexer
-  // EXTICR is an array of 4-bit fields so we must do an RMW cycle
+  // SYSCFG->EXTICR controlls a multiplecer connecting GPIO inputs to the edce detectors of EXTI.
   volatile uint32_t* crword = SYSCFG->EXTICR + (pin >> 2);
   unsigned crpos = (pin & 3u) * 4u;
   *crword = (*crword & ~(0xfu << crpos)) | ((bank_num & 0xfu) << crpos);

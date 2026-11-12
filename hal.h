@@ -22,6 +22,7 @@
 // AHB1, APB1, and APB2 (on the F411).
 // See the bit-banding section in the programmer's manual for the formula and range,
 // and the memory map section of reference manual to see which busses fall onto that range.
+// Not all MCUs support bit-banding (gotcha 43).
 static inline bool* BITBAND_IO(uint32_t* reg, uint32_t bit) {
     intptr_t offset = reg - ((uint32_t*) PERIPH_BASE); // in words
     uint32_t* alias = ((uint32_t *) PERIPH_BB_BASE) + (offset * 32) + bit;

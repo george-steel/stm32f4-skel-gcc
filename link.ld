@@ -23,10 +23,11 @@ Doing so will prevent the DMA from accessing stack memory. (see STM32 Gotcha 5)
 _estack     = ORIGIN(sram) + LENGTH(sram);    /* stack points to end of SRAM */
 
 /*
-Force the inclusion of floating-point formatting for printf and friends.
-If this is left out, printf will default to an integer-only version to save program space.
+Uncomment to enable floating-point formatting for printf and friends.
+Newlib's printf references this weakly, which does not trigger its inclusion from library archives,
+defaulting to an integer-only version to save program space if it is not explicitly included.
 */
-EXTERN(_printf_float);
+/*EXTERN(_printf_float);*/
 
 /*
 Unfortunately, input sections emitted by GCC are not listed in normative documentation,
@@ -45,7 +46,7 @@ SECTIONS {
 
   /*
   C++ initializer table (not used for plain C).
-  The symbols defined here are used by newlib's __libc_init_array, which is called by Reset_handler
+  The symbols defined here are used by newlib's __libc_init_array, which is called by Reset_Handler
   */
   .preinit_array : {
     __preinit_array_start = .;

@@ -10,7 +10,7 @@ and configures the MCU clock to run at full speed.
 Although these steps are not needed for a blinky, they are required by most complex applications.
 
 This project is configured for the WeAct Studio mini STM32F411CE board,
-but is intended to be adaptable to other boards and MCUs.
+but is intended to be adaptable to other STM32 boards and MCUs.
 All "magic" constants and symbols are annotated with their sources in order to enable this sort of modification.
 The target board has 25MHz HSE crystal, an LED on PC13, and a button between PA0 and ground.
 Pin assignments can be changed in `main.c` and the crystal frequency can be changed in `SystenInit` in `syscalls.c`
@@ -18,23 +18,82 @@ Pin assignments can be changed in `main.c` and the crystal frequency can be chan
 The program can be built by running `make` to build `firmware.bin` and
 loaded to the device using `make flash` with an ST-Link device or `make dfu` with a direct USB connection and BOOT0 switch.
 
-## Dependencies
+For those coming from the Atmel/Arduino ecosystem
+(which had a single company producing the entire MCU design and `avr-gcc` toolchain, with tight integration),
+the embedded ARM ecosystem can appear rather fragmented.
+MCUs are designed by combining a licensed core with modular peripherals (often themselves licensed) using standard bus interfaces,
+and there are far more distinct designs than there are for 8-bit MCUs.
+These fragmented designs are reflected by fragmented toolchains, with different parts developed by different companies,
+needing extensive configuration to be used with any specific MCU.
+
+This project attempts to provide a guide through that fragmentation,
+providing all necessary configuration and dependencies for a simple project,
+annotated with explanations and citations so you can adjust it to fit your STM32 MCU of choice.
+
+
+## System Dependencies
 
 You will need the following system packages installed:
-* make
-* arm-none-eabi-gcc
-* arm-none-eabi-newlib
-* [stlink](https://github.com/stlink-org/stlink) or dfu-util (depending on how your board in connected for flashing)
-* clangd and bear (optional, bear is used to generate clangd configuration from Makefiles)
+* `make`
+* `arm-none-eabi-gcc`
+* `arm-none-eabi-newlib`
+* [`stlink`](https://github.com/stlink-org/stlink) or `dfu-util` (depending on how your board is connected for flashing)
+* `clangd` and `bear` (optional)
+* an editor of your choice
 
-You will also need the CMSIS headers for your microcontrolller,
-which consist of a core module and an MCU-specific module.
-These can be fetched for the STM32F4 series using `make cmsis_core` and `make cmsis_f4`.
-If using another series, you will need to adjust the URL in the Makefile.
+`arm-none-eabi-gcc` is a cross-compiling variant of GCC which targets 32-bit ARM microcontrollers,
+using a calling convention suitable for NVIC-called interrupt handlers.
+It is called by `make`, which defines configuration flags to select the core variant used
+(different cores implement different subsets of the arm32 instructions).
+This generally also includes binutils (`ld`, `objdump`, `objcopy`, and friends) in addition to `gcc` itself.
+
+`arm-none-eabi-newlib` contains a variety of precompiled versions of [Newlib](https://sourceware.org/newlib/),
+a compact version of the C standard library which does not assume a specific host OS,
+configured for various ARM cores.
+This it automatically included in the header and library search paths of `arm-none-eabi-gcc`.
+The [ARM-recommended](https://developer.arm.com/community/arm-community-blogs/b/embedded-and-microcontrollers-blog/posts/shrink-your-mcu-code-size-with-gcc-arm-embedded-4-7) configuration,
+known as Newlib-nano (consisting of `libc_nano.a` and `libm.a`),
+omits a number of features (such as `wchar_t` support) that have large implementations and are generally irrelevant to MCU development,
+and makes others (such as floating-point support in `printf`) optional using weak linkage.
+
+To upload firmware to the MCU, we can use either `stlink` or `dfu-util`.
+`stlink` (which includes the `st-flash` tool as well as a GUI) connects to the MCU over ARM SWD (Serial Wire Debug) protocol using an ST-Link device
+(which can either be a standalone unit, or the top section of a Nucleo board), and can be used with all STM32 MCUs.
+`dfu-util` connects to the MCU directly over USB, which requires that the MCU has a USB interface.
+Using this requires that the MCU be put into an alternate boot mode (usually by triggering Reset with the BOOT0 pin pulled high),
+which loads a USB-DFU bootloader from an internal, factory-programmed ROM.
+
+`clangd` is a useful static analysis tool for C and C++ and has integrations for many editors,
+and can be automatically configured by using `bear` to monitor a run of a build system.
+To generate `clangd` configuration, run `make clean && bear -- make`.
+
+## CMSIS Headers
+
+In addition to the build tools and C library, you will also need the CMSIS headers for your microcontrolller.
+These define an interface for microcontroller-specific functionality, and are divided into several modules.
+Necessary modules for the STM32F411 will be fetched by make during first build (adjust the Makefile if you are using another MCU).
+
+[CMSIS Core](https://github.com/ARM-software/CMSIS_6) is published by ARM and provides headers to let C programs access the functionality of ARM cores.
+These headers include core register definitions (for the NVIC, SCB, and SysTick), utility functions to control these systems,
+and intrinsics for instructions that the C compiler does not emit directly.
+
+For each series of STM32 MCU, there is also a device component (such as [cmsis-device-f4](https://github.com/STMicroelectronics/cmsis-device-f4)),
+which defines a standard header for each MCU in the series.
+This header transitively includes the correct set of headers from CMSIS Core,
+as well as providing register definitions for all the MCU's peripherals,
+allowing register access by name instead of by address.
+
+The CMSIS device component also provides a startup file (described below under program structure),
+which defines the vector table and provides a boot routine to initialize memory and call main.
 
 ## Documentation
 
-Documentation for the STM32 ecosystem is quite fragmented, and you will need the following volumes.
+Unlike some MCUs (such as the Atmel ATMEGAx8), which have a single, comprehensive manual,
+documentation for the STM32 ecosystem is quite fragmented.
+STM32 MCUs are designed as [interconnected systems of modules](http://efton.sk/STM32/gotcha/g25.html) (a System on Chip) designed by different companies,
+and the documentation s[omewhat reflects this](http://efton.sk/STM32/gotcha/g67.html).
+
+You will need the following volumes.
 Links refer to the [STM32F411](https://www.st.com/en/microcontrollers-microprocessors/stm32f411/documentation.html),
 you will need to check the page for your MCU if you are using a different one.
 
@@ -50,7 +109,7 @@ you will need to check the page for your MCU if you are using a different one.
   This is where corrections appear and supersedes the other three, which are rarely updated.
 * The [CMSIS-Core documentation](https://arm-software.github.io/CMSIS_6/latest/Core/index.html).
 * The [Newlib](https://sourceware.org/newlib/) documentation and source code. Covers the C standard library.
-  The source code can come in handy if you implement custom syscalls in order to understand how they are used.
+  The source code can come in handy if you implement custom syscalls, to understand exatly how they are used.
 * EFTON's [STM32 gotchas](http://efton.sk/STM32/gotcha/index.html).
   This third party resource clarifies many aspects of STM32 MCUs that are unclear or hard to find in the official documentation.
   It is referred to quite a few times here and is worth searching when dealing with unexpected behaviour.
@@ -60,16 +119,22 @@ you will need to check the page for your MCU if you are using a different one.
 
 ### `Makefile`
 
-This lists the source files and defines the build process.
+This lists the source files and defines the build process,
+calling the compiler when you run `make` to build the firmware.
 If you add a file, you will need to add it to `SOURCES` or `HEADERS`.
 This also defines the CFLAGS to use the instruction set of the Cortex-M4F core (as used by the STM32F4 series).
 If you use another series, this will need to be adjusted, as well as the include path for the CMSIS headers.
+Note that all CFLAGS are defined explicitly (instead of linking to `.specs` files) for `clangd` compatibility.
 
 ### `link.ld`
 
 This linker script defines the MCU's memory structure,
 and determines how compiled code is laid out in flash and variables are allocated in RAM.
-It places the vector table at the start of flash, as well as defining a number of symbols used by the startup routine.
+Unlike Atmel MCUs, which have implicit linker scripts baked into `avr-gcc`,
+the `arm-none-eabi-gcc` does not include any for bare-metal MCUs.
+
+The linker script places the vector table at the start of flash, where the MCU expecets it to be at boot,
+as well as defining a number of symbols used by the startup routine.
 If you use an MCU with a different memory layout (such as a differing amount of RAM), you will need to edit this.
 MCUs with CCMRAM might need significant changes (see a comment in the file for more details).
 

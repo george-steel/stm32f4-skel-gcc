@@ -34,7 +34,9 @@ If using another series, you will need to adjust the URL in the Makefile.
 
 ## Documentation
 
-Documentation for the STM32 ecosystem is quite fragmented, and you will need the following volumes. Links refer to the [STM32F411](https://www.st.com/en/microcontrollers-microprocessors/stm32f411/documentation.html), you will need to check the page for your MCU if you are using a different one.
+Documentation for the STM32 ecosystem is quite fragmented, and you will need the following volumes.
+Links refer to the [STM32F411](https://www.st.com/en/microcontrollers-microprocessors/stm32f411/documentation.html),
+you will need to check the page for your MCU if you are using a different one.
 
 * The [Programmer's Manual](https://www.st.com/resource/en/programming_manual/pm0214-stm32-cortexm4-mcus-and-mpus-programming-manual-stmicroelectronics.pdf). 
   This describes the instruction set, memory model, and core peripherals.
@@ -71,13 +73,18 @@ It places the vector table at the start of flash, as well as defining a number o
 If you use an MCU with a different memory layout (such as a differing amount of RAM), you will need to edit this.
 MCUs with CCMRAM might need significant changes (see a comment in the file for more details).
 
-If you require floating-point support for `printf` and friends, you will need to uncomment a line to link to it, as Newlib uses a smaller, integer-only version by default.
+If you require floating-point support for `printf` and friends, you will need to uncomment a lcommand to link to it, as Newlib uses a smaller, integer-only version by default.
 
 ### `cmsis_f4/Source/Templates/gcc/startup_stm32f411xe.s`
 
-This CMSIS-provided file (fetched during the first build) defines the vector table (defining startup and interrupts) and `Reset_Handler`, which initializes memory and eventually calls `main()`. This is MCU-specific and you will need to change the path in the Makefile if you use a different one. It also declares a weak symbol for each of the other interrupt handlers. If you implement one, it will be added to the vector table.
+This CMSIS-provided file (fetched during the first build) defines the vector table (defining startup and interrupts) and `Reset_Handler`,
+which initializes memory and eventually calls `main()`.
+This is MCU-specific and you will need to change the path in the Makefile if you use a different one.
+It also declares a weak symbol for each of the other interrupt handlers. If you implement one, it will be added to the vector table.
 
-Note that these files assume a single section each for initialized and zeroed static variables. If you wish to split them between main SRAM and CCMRAM in the linker script (on an MCU with such a layout), you will need to copy this file into your main repository and edit the initialization sequence in `Reset_Handler`.
+Note that these files assume a single section each for initialized and zeroed static variables.
+If you wish to split them between main SRAM and CCMRAM in the linker script (on an MCU with such a layout),
+you will need to copy this file into your main repository and edit the initialization sequence in `Reset_Handler`.
 
 ### `syscalls.c`
 
@@ -109,7 +116,8 @@ The files are a good place to create abstractions around the peripherals used in
 Currently, this defines some basic timing (using SysTick) and GPIO functionality, which is useful in almost all projects.
 These files can also be a good place to add your own abstractions,
 
-This is not intended to be a general-purpose abstraction around all peripherals, as many of them have a huge number of different operating modes, and abstractions specific to only those used by the project can be far simpler than general ones.
+This is not intended to be a general-purpose abstraction around all peripherals, as many of them have a huge number of different operating modes,
+and abstractions specific to only those used by the project can be far simpler than general ones.
 
 ### `main.c`
 
